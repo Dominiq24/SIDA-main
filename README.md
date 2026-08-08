@@ -186,6 +186,115 @@ To chat with SIDA,  we recommend using SIDA-13B for more accurate segmentation r
 CUDA_VISIBLE_DEVICES=0 python chat_description.py --version='./ck/SIDA-13B-description'
 CUDA_VISIBLE_DEVICES=0 python chat.py --version='./ck/SIDA-13B'
 ```
+## Proposed Changes
+
+Based on the SIDA architecture and the requirements of a practical deepfake detection system, the following changes are proposed to improve realtime performance, robustness against adversarial manipulation, and sensitivity to low-level forensic artifacts.
+
+### 1. Decrease in Model Weight for Realtime Integration
+
+The original SIDA framework uses large multimodal components that provide strong detection, localization, and explanation capabilities, but their computational requirements can make realtime deployment difficult. A lightweight version, referred to here as **SIDA-Lite**, is proposed to reduce latency and memory requirements while retaining the core functionality of the system.
+
+The proposed architectural changes are:
+
+| Component | Original SIDA | SIDA-Lite (Proposed) | Reduction |
+|---|---|---|---|
+| Visual Encoder | ViT-Large (~300M parameters) | EfficientNet-B0 (~5.3M parameters) | ~50× smaller |
+| LLM Backbone | LLaMA-7B (7B parameters) | TinyLlama-1.1B (1.1B parameters) | ~7× smaller |
+| Hidden Dimension | 4096 | 2048 | 2× smaller |
+
+The lightweight pipeline retains the `<DET>` and `<SEG>` tokens. The EfficientNet-B0 branch performs efficient visual feature extraction, while TinyLlama-1.1B handles multimodal token generation and explanation. A lightweight fusion module combines the visual and multimodal features before the decoder produces the localization mask.
+
+This modification is intended to provide:
+
+- **Lower latency:** Smaller models reduce inference time and computational overhead.
+- **Edge accessibility:** The system becomes more suitable for laptops and other consumer-grade hardware.
+- **Reduced memory consumption:** Fewer parameters make deployment more practical.
+- **Realtime integration:** The lighter architecture can support applications where rapid feedback is required.
+
+### 2. Adversarial Attacks for Increased Robustness
+
+Deepfake detectors can be vulnerable to small, carefully designed perturbations that are difficult for humans to notice. Therefore, adversarial testing is proposed as a systematic method for evaluating the robustness of SIDA.
+
+The evaluation will consider:
+
+| Dimension | Description |
+|---|---|
+| Knowledge | **White-box:** attacker has access to model internals such as weights and gradients. **Black-box:** attacker relies on model queries or transferability from surrogate models. |
+| Goal | **Targeted:** attempts to force a specific incorrect output. **Untargeted:** attempts to change the correct output to any incorrect output. |
+| Output Type | Attacks can target classification labels, segmentation/localization masks, or textual explanations. |
+
+The proposed implementation procedure is:
+
+1. Acquire the original image and enable gradient tracking for the input.
+2. Perform a forward pass through the model and calculate the corresponding loss.
+3. Backpropagate the loss gradient with respect to the input image.
+4. Generate adversarial samples using **Fast Gradient Sign Method (FGSM)** or iterative **Projected Gradient Descent (PGD)**.
+5. Clip the modified pixel values and enforce a strict perturbation limit.
+6. Evaluate the model on the generated adversarial samples.
+7. Use the results to identify weaknesses and, where appropriate, support adversarial training for improved robustness.
+
+The evaluation will measure whether adversarial perturbations can alter the model's classification, localization mask, or generated explanation while keeping the visual change small.
+
+### 3. Frequency Augmentation
+
+The proposed frequency augmentation introduces a parallel frequency-domain branch to capture forensic signals that may not be sufficiently represented by standard RGB visual features. Generative models can leave spectral artifacts, including abnormal high-frequency distributions and other frequency-domain patterns that may be difficult to identify through ordinary visual inspection.
+
+The proposed architecture consists of:
+
+1. **Frequency Transformation:** Convert the input image into the frequency domain using a transformation such as the Fast Fourier Transform (FFT).
+2. **Frequency Encoder:** Process the frequency representation through a dedicated trainable encoder to extract spectral features.
+3. **Feature Projection:** Project the frequency features into a representation compatible with the SIDA multimodal features.
+4. **Detection Fusion:** Concatenate the frequency embedding with the VLM detection representation to improve real/fake classification.
+5. **Segmentation Fusion:** Combine frequency features with the standard visual features before the decoder to improve the precision of tampered-region masks.
+6. **Explanation:** Retain the original multimodal language pathway so that the system can continue to provide textual explanations.
+
+The expected benefit is improved sensitivity to subtle manipulation fingerprints that may be overlooked by a purely RGB-based visual encoder.
+
+### Proposed Architecture
+
+The three modifications can be integrated into a single improved pipeline:
+
+```text
+                         Input Image
+                             |
+              +--------------+--------------+
+              |                             |
+       Lightweight RGB              Frequency Transform
+       Visual Encoder                     (FFT)
+       EfficientNet-B0                       |
+              |                        Frequency Encoder
+              |                             |
+              +-------------+---------------+
+                            |
+                    Feature Fusion
+                            |
+                     Lightweight VLM
+                    TinyLlama-1.1B
+                            |
+                     <DET>       <SEG>
+                       |            |
+                 Detection     Segmentation
+                    Head           Head
+                       |            |
+              Real / Synthetic   Localization
+                 / Tampered          Mask
+                            |
+                     Explanation
+                            |
+                 Textual Forensic
+                    Explanation
+```
+
+### Expected Outcome
+
+The proposed changes are designed to improve SIDA in three complementary dimensions:
+
+- **Efficiency:** Model lightweighting makes the framework more suitable for realtime and resource-constrained deployment.
+- **Robustness:** Adversarial evaluation exposes vulnerabilities and provides a basis for improving resistance to deliberate attacks.
+- **Forensic sensitivity:** Frequency augmentation adds low-level spectral information that complements the semantic understanding of the multimodal backbone.
+
+The existing SIDA functionality is preserved as the foundation: classification, tampered-region localization, and textual explanation. The original project describes these capabilities and the use of `<DET>` and `<SEG>` tokens for detection and segmentation. fileciteturn1file0L31-L32 fileciteturn1file0L167-L176
+
 
 Examples:
 ```
