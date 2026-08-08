@@ -186,6 +186,27 @@ To chat with SIDA,  we recommend using SIDA-13B for more accurate segmentation r
 CUDA_VISIBLE_DEVICES=0 python chat_description.py --version='./ck/SIDA-13B-description'
 CUDA_VISIBLE_DEVICES=0 python chat.py --version='./ck/SIDA-13B'
 ```
+Examples:
+```
+CUDA_VISIBLE_DEVICES=0 python chat.py --version='./ck/SIDA-13B'
+Please input your prompt: Please answer begin with [CLS] for classification, if the image is  tampered, ouput mask the tampered region. 
+Please input the image path: ./examples/figure1(figure2, figure3).png
+text_output:  <s> [CLS] This image is classified as tampered. It has been altered. [SEG] A mask highlighting the tampered region is provided.
+```
+You should get masked image like below:
+
+<img src="examples/figure1_mask.png" width="15%"><img src="examples/figure1_masked.jpg" width="15%">  <img src="examples/figure2_mask.png" width="15%"><img src="examples/figure2_masked.jpg" width="15%">  <img src="examples/figure3_mask.png" width="15%"><img src="examples/figure3_masked.jpg" width="15%">
+
+```
+CUDA_VISIBLE_DEVICES=0 python chat_description.py --version='./ck/SIDA-13B-description'
+Please input your prompt: Please answer begin with [CLS] for classification, if the image is  tampered, ouput mask the tampered region and explain why. 
+Please input the image path: ./examples/figure3.png
+text_output:  [CLS] The image is tampered.[SEG]
+ Type: {part tampered} Areas:<tampered position> The tampered area is located on the skier's right leg, specifically around the knee and ankle, in the lower half of the image.
+Tampered Content:<Types of objects or parts> The skier's right leg, specifically the knee and ankle, showing the ski and the person's clothing.
+Visual Inconsistencies:<lighting> The lighting on the tampered area does not match the rest of the image, showing a different shadow or highlight.<edges> The edges around the tampered area are unnaturally sharp or blurred, indicating a composite or altered element.<resolution> The resolution of the tampered area is slightly different from the rest of the image, showing a disparity in detail.<shadows> Shadows and reflections in the tampered area do not align with the lighting on other parts of the skier [end].
+```
+
 ## Proposed Changes
 
 Based on the SIDA architecture and the requirements of a practical deepfake detection system, the following changes are proposed to improve realtime performance, robustness against adversarial manipulation, and sensitivity to low-level forensic artifacts.
